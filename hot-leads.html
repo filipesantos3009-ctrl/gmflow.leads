@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hot Leads — GM Flow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d0d0d;
+      color: #f0f0f0;
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+    }
+
+    /* ── Auth overlay ── */
+    #auth-overlay {
+      position: fixed; inset: 0;
+      background: #0d0d0d;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+
+    .auth-card {
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      width: 100%; max-width: 360px;
+      text-align: center;
+    }
+
+    .auth-card .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #f0a500, #e07000);
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.75rem;
+      border-radius: 100px;
+      margin-bottom: 1.25rem;
+    }
+
+    .auth-card h2 { font-size: 1.4rem; margin-bottom: 0.4rem; }
+    .auth-card p  { color: #777; font-size: 0.85rem; margin-bottom: 1.5rem; }
+
+    .auth-card input {
+      width: 100%;
+      background: #0d0d0d;
+      border: 1px solid #2e2e2e;
+      border-radius: 8px;
+      color: #f0f0f0;
+      font-size: 1rem;
+      padding: 0.75rem 1rem;
+      outline: none;
+      margin-bottom: 1rem;
+      text-align: center;
+      letter-spacing: 0.1em;
+    }
+
+    .auth-card input:focus { border-color: #f0a500; }
+
+    .auth-btn {
+      width: 100%;
+      padding: 0.8rem;
+      background: linear-gradient(135deg, #f0a500, #e07000);
+      color: #000;
+      font-weight: 700;
+      font-size: 0.95rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .auth-error {
+      color: #ff6b6b;
+      font-size: 0.8rem;
+      margin-top: 0.75rem;
+      display: none;
+    }
+
+    /* ── Main layout ── */
+    #main { display: none; max-width: 1100px; margin: 0 auto; }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .top-bar h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .top-bar h1 span {
+      background: linear-gradient(135deg, #f0a500, #e07000);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .stats {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 0.6rem 1.1rem;
+      text-align: center;
+    }
+
+    .stat .num { font-size: 1.4rem; font-weight: 700; color: #f0a500; }
+    .stat .lbl { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 200px;
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #f0f0f0;
+      font-size: 0.9rem;
+      padding: 0.6rem 1rem;
+      outline: none;
+    }
+
+    .search-input:focus { border-color: #f0a500; }
+    .search-input::placeholder { color: #555; }
+
+    .filter-select {
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #f0f0f0;
+      font-size: 0.9rem;
+      padding: 0.6rem 1rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .filter-select option { background: #1a1a1a; }
+
+    .refresh-btn {
+      background: #1e1e1e;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #aaa;
+      font-size: 0.85rem;
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .refresh-btn:hover { color: #f0a500; border-color: #f0a500; }
+
+    /* ── Table ── */
+    .table-wrap {
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      overflow: hidden;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    thead {
+      background: #1a1a1a;
+    }
+
+    thead th {
+      padding: 0.85rem 1rem;
+      text-align: left;
+      color: #888;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #1e1e1e;
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #1a1a1a; }
+
+    tbody td {
+      padding: 0.9rem 1rem;
+      vertical-align: middle;
+      color: #ddd;
+    }
+
+    .td-name { font-weight: 600; color: #fff; }
+    .td-email { color: #aaa; font-size: 0.82rem; }
+
+    .orcamento-badge {
+      display: inline-block;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 0.2rem 0.6rem;
+      font-size: 0.75rem;
+      color: #f0a500;
+      white-space: nowrap;
+    }
+
+    .date-cell { color: #666; font-size: 0.8rem; white-space: nowrap; }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #555;
+    }
+
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .empty-state p { font-size: 0.9rem; }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px; height: 20px;
+      border: 2px solid #333;
+      border-top-color: #f0a500;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .top-bar { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Auth overlay ── -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="badge">Área Privada</div>
+    <h2>Hot Leads</h2>
+    <p>Introduz a password para aceder</p>
+    <input type="password" id="password-input" placeholder="••••••••" />
+    <button class="auth-btn" onclick="checkPassword()">Entrar</button>
+    <div class="auth-error" id="auth-error">Password incorreta.</div>
+  </div>
+</div>
+
+<!-- ── Main dashboard ── -->
+<div id="main">
+  <div class="top-bar">
+    <h1>🔥 <span>Hot Leads</span></h1>
+    <div class="stats">
+      <div class="stat">
+        <div class="num" id="stat-total">—</div>
+        <div class="lbl">Total</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="stat-today">—</div>
+        <div class="lbl">Hoje</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <input class="search-input" type="text" id="search" placeholder="Pesquisar por nome, empresa ou email…" oninput="renderTable()" />
+    <select class="filter-select" id="orcamento-filter" onchange="renderTable()">
+      <option value="">Todos os orçamentos</option>
+      <option value="Menos de 1.000€">Menos de 1.000€</option>
+      <option value="1.000€ – 5.000€">1.000€ – 5.000€</option>
+      <option value="5.000€ – 15.000€">5.000€ – 15.000€</option>
+      <option value="15.000€ – 50.000€">15.000€ – 50.000€</option>
+      <option value="Mais de 50.000€">Mais de 50.000€</option>
+    </select>
+    <button class="refresh-btn" onclick="loadLeads()">↻ Atualizar</button>
+  </div>
+
+  <div class="table-wrap">
+    <div class="loading" id="loading">
+      <span class="spinner"></span> A carregar leads…
+    </div>
+    <table id="leads-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Contacto</th>
+          <th>Empresa / Cargo</th>
+          <th>Motivo</th>
+          <th>Orçamento</th>
+          <th>Data</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state" style="display:none">
+      <div class="icon">📭</div>
+      <p>Nenhum lead encontrado.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── CONFIGURAÇÃO ───────────────────────────────────────────────────────────
+  const DASHBOARD_PASSWORD = 'gmflow2025';            // ← muda aqui
+  const AIRTABLE_API_KEY   = 'patQd64RxlNWzgrk8.f985ee1002071cbb1ec00b87a4dd1fae0921ad37bbbf6a7a948b7503f6b1e554';
+  const AIRTABLE_BASE_ID   = 'app8jKzf1mSn3mv8l';
+  const AIRTABLE_TABLE     = 'tblkCcqKA2YP7pdd7';
+  // ────────────────────────────────────────────────────────────────────────────
+
+  let allLeads = [];
+
+  function checkPassword() {
+    const val = document.getElementById('password-input').value;
+    if (val === DASHBOARD_PASSWORD) {
+      document.getElementById('auth-overlay').style.display = 'none';
+      document.getElementById('main').style.display = 'block';
+      loadLeads();
+    } else {
+      document.getElementById('auth-error').style.display = 'block';
+    }
+  }
+
+  document.getElementById('password-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkPassword();
+  });
+
+  async function loadLeads() {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('leads-table').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'none';
+
+    try {
+      let records = [];
+      let offset = null;
+
+      do {
+        const url = new URL(
+          `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE)}`
+        );
+        url.searchParams.set('sort[0][field]', 'Data');
+        url.searchParams.set('sort[0][direction]', 'desc');
+        if (offset) url.searchParams.set('offset', offset);
+
+        const res = await fetch(url.toString(), {
+          headers: { 'Authorization': `Bearer ${AIRTABLE_API_KEY}` }
+        });
+
+        if (!res.ok) throw new Error(`Airtable ${res.status}`);
+
+        const data = await res.json();
+        records = records.concat(data.records);
+        offset = data.offset || null;
+      } while (offset);
+
+      allLeads = records.map(r => r.fields);
+      updateStats();
+      renderTable();
+
+    } catch (err) {
+      console.error(err);
+      document.getElementById('loading').innerHTML =
+        '⚠️ Erro ao carregar. Verifica as credenciais do Airtable.';
+    }
+  }
+
+  function updateStats() {
+    const today = new Date().toISOString().slice(0, 10);
+    const todayCount = allLeads.filter(l => l.Data && l.Data.startsWith(today)).length;
+    document.getElementById('stat-total').textContent = allLeads.length;
+    document.getElementById('stat-today').textContent = todayCount;
+  }
+
+  function renderTable() {
+    const search   = document.getElementById('search').value.toLowerCase();
+    const oFilter  = document.getElementById('orcamento-filter').value;
+
+    const filtered = allLeads.filter(l => {
+      const haystack = `${l.Nome||''} ${l.Email||''} ${l.Empresa||''}`.toLowerCase();
+      const matchSearch = !search || haystack.includes(search);
+      const matchOrc    = !oFilter || l['Orçamento'] === oFilter;
+      return matchSearch && matchOrc;
+    });
+
+    document.getElementById('loading').style.display = 'none';
+
+    if (filtered.length === 0) {
+      document.getElementById('leads-table').style.display = 'none';
+      document.getElementById('empty-state').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('leads-table').style.display = 'table';
+
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = filtered.map(l => {
+      const data = l.Data ? new Date(l.Data).toLocaleDateString('pt-PT', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }) : '—';
+
+      return `
+        <tr>
+          <td class="td-name">${esc(l.Nome || '—')}</td>
+          <td>
+            <div>${esc(l.Email || '—')}</div>
+            <div class="td-email">${esc(l.Telefone || '')}</div>
+          </td>
+          <td>
+            <div>${esc(l.Empresa || '—')}</div>
+            <div class="td-email">${esc(l.Cargo || '')}</div>
+          </td>
+          <td style="max-width:220px;white-space:normal;line-height:1.4">${esc(l.Motivo || '—')}</td>
+          <td>${l['Orçamento'] ? `<span class="orcamento-badge">${esc(l['Orçamento'])}</span>` : '<span style="color:#555">—</span>'}</td>
+          <td class="date-cell">${data}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+
+</body>
+</html>
